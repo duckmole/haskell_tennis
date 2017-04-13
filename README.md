@@ -15,7 +15,6 @@ launch the following commands :
 
 You should have 2 failed tests. Let them failed during the first part
 
-## First Part Type Definition
+## External links
 
-
-## Coding Property
+[QuickChecking Poolboy for Fun and Profit](http://basho.com/posts/technical/quickchecking-poolboy-for-fun-and-profit/)

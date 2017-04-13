@@ -2,21 +2,31 @@ import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 
 import Test.QuickCheck
-import Lib (Player(..), Score(..), Point(..), FortyData(..), score)
+import Lib (Player(..), Point(..), ScoreMatch(..), score, sequenceGame)
 
 main :: IO ()
 main = defaultMain tests
 
 tests = [
-        testGroup "Tennis score" [
-                testProperty "Deuce score" deuce,
-                testProperty "Advantage score when advantaged player wins" advantage_to_win,
-                testProperty "Advantage score when advantaged player loses" advantage_to_deuce,
-                testProperty "Given player: 40 when player wins then score is correct" forty_win,
-                testProperty "Given player: 40 - other: 30 when other wins then score is correct" forty_to_deuce,
-                testProperty "Given player: 40 - other: < 30 when other wins then score is correct" increment_point
-                ]
+  testGroup "Sorting Group 1" [
+      testProperty "Deuce score"
+        (\winner -> score Deuce winner == Advantage winner),
+      testProperty "Advantage score when player wins"
+        (\winner -> score (Advantage winner) winner == Game winner),
+      testProperty "Advantage score when other player wins"
+        (\winner -> score (Advantage winner) (other winner) == Deuce),
+      testProperty "40 player win"
+        (\winner point -> score (Forty winner point) winner == Game winner),
+      testProperty "40 player to deuce"
+        (\winner -> score (Forty (other winner) Thirty) winner == Deuce),
+      testProperty "40 player increment point"
+        (\winner -> score (Forty (other winner) Love) winner == Forty (other winner) Fifteen),
+      testProperty "Not game after 3 points" (balls 3 isNotGame),
+      testProperty "Not deuce after 5 points" (balls 5 isNotDeuce),
+      testProperty "Not advantage after 6 points" (balls 6 isNotAdvantage)
       ]
+  ]
+
 
 instance Arbitrary Player where
   arbitrary = elements [Player1, Player2]
@@ -24,34 +34,21 @@ instance Arbitrary Player where
 instance Arbitrary Point where
   arbitrary = elements [Love, Fifteen, Thirty]
 
-newtype PointLessThirty = PointLessThirty Point
-  deriving (Show, Eq)
-
-instance Arbitrary PointLessThirty where
-  arbitrary = elements [PointLessThirty Love, PointLessThirty Fifteen]
-
-deuce winner =
-  score Deuce winner == Advantage winner
-
-advantage_to_win winner =
-  score (Advantage winner) winner == Game winner
-
 other Player1 = Player2
 other Player2 = Player1
 
-advantage_to_deuce winner =
-  score (Advantage (other winner)) winner == Deuce
+isNotGame:: ScoreMatch -> Bool
+isNotGame (Game _) = False
+isNotGame _ = True
 
-forty_win winner point =
-  score (Forty FortyData{player=winner, otherPlayerPoint=point}) winner == Game winner
+isNotDeuce:: ScoreMatch -> Bool
+isNotDeuce Deuce = False
+isNotDeuce _ = True
 
-forty_to_deuce winner =
-  score (Forty FortyData{player=other winner, otherPlayerPoint=Thirty}) winner == Deuce
+isNotAdvantage:: ScoreMatch -> Bool
+isNotAdvantage (Advantage _) = False
+isNotAdvantage _ = True
 
-increment_point :: Player -> PointLessThirty -> Bool
-increment_point winner (PointLessThirty point) =
-  score (Forty FortyData{player=other winner, otherPlayerPoint=point}) winner ==
-  Forty FortyData{player=other winner, otherPlayerPoint=increment point}
-
-increment Love = Fifteen
-increment Fifteen = Thirty
+balls:: Int -> (ScoreMatch -> Bool) -> [Player] -> Bool
+balls number checker winners =
+  checker (sequenceGame (take number winners))
